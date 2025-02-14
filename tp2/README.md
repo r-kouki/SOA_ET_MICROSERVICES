@@ -1,101 +1,196 @@
 # Person Registry API
 
-A simple REST API built with Express.js and SQLite for managing person records.
+A modern REST API built with Express.js and SQLite for managing person records with rate limiting and CORS support.
+
+## Features
+
+- CRUD operations for person management
+- SQLite database for data persistence
+- CORS support for cross-origin requests
+- Rate limiting for API protection
+- JSON response format
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm (v6 or higher)
 
 ## Setup
 
-1. Install dependencies:
+1. Clone the repository and navigate to the project directory
+
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-2. Start the server:
+3. Initialize the database:
+The SQLite database will be automatically created on first run.
+
+4. Start the server:
 ```bash
 node index.js
 ```
 
-The server will run on port 3000 by default.
+Server runs on http://localhost:3000
 
-## Database Structure
+## Security Features
 
-The SQLite database contains a `personnes` table with the following structure:
-- `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
-- `nom` (TEXT NOT NULL)
-- `adresse` (TEXT)
+- **Rate Limiting**: 10 requests per 15 minutes per IP
+- **CORS**: Configured to allow cross-origin requests
+- **Input Validation**: Request body validation for data integrity
 
-## API Endpoints
+## API Documentation
 
-### Get All Persons
-- **Method**: GET
-- **URL**: `/personnes`
-- **Response**: List of all persons
+### Base URL
+```
+http://localhost:3000
+```
 
-### Get Person by ID
-- **Method**: GET
-- **URL**: `/personnes/:id`
-- **Response**: Single person object
+### Endpoints
 
-### Create Person
-- **Method**: POST
-- **URL**: `/personnes`
-- **Body**:
+#### 1. Get All Persons
+```http
+GET /personnes
+```
+**Response**: 
+```json
+{
+    "message": "success",
+    "data": [
+        {
+            "id": 1,
+            "nom": "John Doe",
+            "adresse": "123 Main St"
+        }
+    ]
+}
+```
+
+#### 2. Get Person by ID
+```http
+GET /personnes/:id
+```
+**Response**: 
+```json
+{
+    "message": "success",
+    "data": {
+        "id": 1,
+        "nom": "John Doe",
+        "adresse": "123 Main St"
+    }
+}
+```
+
+#### 3. Create Person
+```http
+POST /personnes
+```
+**Body**:
 ```json
 {
     "nom": "John Doe",
     "adresse": "123 Main St"
 }
 ```
-
-### Update Person
-- **Method**: PUT
-- **URL**: `/personnes/:id`
-- **Body**:
+**Response**:
 ```json
 {
-    "nom": "Jane Doe"
+    "message": "success",
+    "data": {
+        "id": 1
+    }
 }
 ```
 
-### Delete Person
-- **Method**: DELETE
-- **URL**: `/personnes/:id`
+#### 4. Update Person
+```http
+PUT /personnes/:id
+```
+**Body**:
+```json
+{
+    "nom": "Jane Doe",
+    "adresse": "456 Oak St"
+}
+```
+**Response**:
+```json
+{
+    "message": "success"
+}
+```
 
-## Testing with Postman
+#### 5. Delete Person
+```http
+DELETE /personnes/:id
+```
+**Response**:
+```json
+{
+    "message": "success"
+}
+```
 
-1. **Start the server**
-2. **Open Postman**
-3. **Test endpoints**:
+## Error Handling
 
-For POST/PUT requests, set:
-- Header: `Content-Type: application/json`
-- Body: raw JSON
+All endpoints return error responses in the following format:
+```json
+{
+    "error": "Error message description"
+}
+```
 
-Example requests:
+Common HTTP status codes:
+- 200: Success
+- 400: Bad Request
+- 404: Not Found
+- 429: Too Many Requests
+- 500: Internal Server Error
+
+## Testing
+
+### Using cURL
+
 ```bash
 # Get all persons
-GET http://localhost:3000/personnes
+curl http://localhost:3000/personnes
 
-# Get person by ID
-GET http://localhost:3000/personnes/1
+# Create a person
+curl -X POST http://localhost:3000/personnes \
+  -H "Content-Type: application/json" \
+  -d '{"nom": "John Doe", "adresse": "123 Main St"}'
 
-# Create person
-POST http://localhost:3000/personnes
-{
-    "nom": "John Doe",
-    "adresse": "123 Main St"
-}
+# Update a person
+curl -X PUT http://localhost:3000/personnes/1 \
+  -H "Content-Type: application/json" \
+  -d '{"nom": "Jane Doe"}'
 
-# Update person
-PUT http://localhost:3000/personnes/1
-{
-    "nom": "Jane Doe"
-}
-
-# Delete person
-DELETE http://localhost:3000/personnes/1
+# Delete a person
+curl -X DELETE http://localhost:3000/personnes/1
 ```
+
+### Using Postman
+
+1. Import the following endpoints into Postman:
+   - GET http://localhost:3000/personnes
+   - GET http://localhost:3000/personnes/:id
+   - POST http://localhost:3000/personnes
+   - PUT http://localhost:3000/personnes/:id
+   - DELETE http://localhost:3000/personnes/:id
+
+2. For POST/PUT requests:
+   - Set Header: `Content-Type: application/json`
+   - Use raw JSON body
 
 ## Dependencies
 
-- express: ^4.21.2
-- sqlite3: ^5.1.7
+- express: Web framework
+- sqlite3: Database driver
+- cors: Cross-origin resource sharing
+- express-rate-limit: API rate limiting
+
+## License
+
+ISC
