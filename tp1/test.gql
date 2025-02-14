@@ -1,0 +1,40 @@
+type Product {
+  id: ID!
+  name: String!
+  description: String
+  price: Float!
+  category: String!
+}
+
+type Query {
+  # 1ère requête: Récupérer tous les produits
+  products: [Product!]!
+  
+  # 2ème requête: Récupérer les produits par catégorie
+  productsByCategory(category: String!): [Product!]!
+  
+  # 3ème requête: Récupérer un produit spécifique
+  product(id: ID!): Product
+}
+
+type Mutation {
+  # 1ère mutation: Créer un produit
+  createProduct(
+    name: String!
+    description: String
+    price: Float!
+    category: String!
+  ): Product!
+  
+  # 2ème mutation: Mettre à jour un produit
+  updateProduct(
+    id: ID!
+    name: String
+    description: String
+    price: Float
+    category: String
+  ): Product!
+  
+  # 3ème mutation: Supprimer un produit
+  deleteProduct(id: ID!): Boolean!
+} 
