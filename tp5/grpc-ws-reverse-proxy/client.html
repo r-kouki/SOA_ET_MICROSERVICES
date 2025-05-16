@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gRPC-WebSocket Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        #chatContainer { max-width: 600px; margin: auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        #messages { list-style-type: none; padding: 0; margin: 0 0 20px 0; height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background-color: #fafafa; }
+        #messages li { padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; word-wrap: break-word; }
+        #messages li.sent { background-color: #dcf8c6; text-align: right; margin-left: 50px;}
+        #messages li.received { background-color: #e9e9eb; text-align: left; margin-right: 50px;}
+        #messages li .sender { font-weight: bold; display: block; font-size: 0.9em; margin-bottom: 3px; color: #555; }
+        #messages li .content { font-size: 1em; }
+        #messages li .timestamp { font-size: 0.75em; color: #999; display: block; margin-top: 2px; }
+        .form-group { display: flex; margin-bottom: 10px; }
+        .form-group label { margin-right: 10px; padding-top: 5px;}
+        input[type="text"] { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-right:10px; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        h2 { text-align: center; color: #007bff; }
+    </style>
+</head>
+<body>
+    <div id="chatContainer">
+        <h2>WebSocket Chat Client</h2>
+        <ul id="messages"></ul>
+        <div class="form-group">
+             <input type="text" id="roomId" placeholder="Room ID (e.g., room1)" value="room1">
+        </div>
+        <div class="form-group">
+            <input type="text" id="senderId" placeholder="Your User ID (e.g., user123)" value="user_">
+             <input type="text" id="messageInput" placeholder="Type a message..." >
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        <button onclick="requestHistory()">Load History</button>
+    </div>
+
+    <script>
+        const messagesList = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const roomIdInput = document.getElementById('roomId');
+        const senderIdInput = document.getElementById('senderId');
+
+        senderIdInput.value = "user_" + Math.random().toString(36).substring(2, 7);
+
+        const ws = new WebSocket('ws://localhost:8080');
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket server.');
+            appendStatusMessage('Connected to WebSocket server.');
+            // Automatically request history on connect
+            // requestHistory(); 
+        };
+
+        ws.onmessage = (event) => {
+            console.log('Message from server: ', event.data);
+            const data = JSON.parse(event.data);
+
+            if (data.error) {
+                appendErrorMessage(`Error: ${data.error}${data.details ? ' - ' + data.details : ''}`);
+                return;
+            }
+            
+            if (data.type === 'history') {
+                appendStatusMessage(`--- Chat History Loaded (${data.data.length} messages) ---`);
+                data.data.forEach(msg => displayMessage(msg, false)); // false = not a newly sent message
+                appendStatusMessage('--- End of History ---');
+            } else if (data.chat_message) {
+                // This is an echo or a message from another user relayed by the server
+                displayMessage(data.chat_message, data.chat_message.sender_id !== senderIdInput.value);
+            } else {
+                // Fallback for other message types or direct messages not wrapped in chat_message
+                appendStatusMessage('Received raw data: ' + JSON.stringify(data));
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('Disconnected from WebSocket server.');
+            appendStatusMessage('Disconnected. Try refreshing.');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            appendErrorMessage('WebSocket connection error.');
+        };
+
+        function appendStatusMessage(text) {
+            const item = document.createElement('li');
+            item.style.textAlign = 'center';
+            item.style.fontStyle = 'italic';
+            item.style.color = '#777';
+            item.textContent = text;
+            messagesList.appendChild(item);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function appendErrorMessage(text) {
+            const item = document.createElement('li');
+            item.style.color = 'red';
+            item.style.fontWeight = 'bold';
+            item.textContent = text;
+            messagesList.appendChild(item);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+        
+        function displayMessage(msg, isReceived) {
+            const item = document.createElement('li');
+            item.classList.add(isReceived ? 'received' : 'sent');
+            
+            const senderSpan = document.createElement('span');
+            senderSpan.className = 'sender';
+            senderSpan.textContent = msg.sender_id;
+
+            const contentSpan = document.createElement('span');
+            contentSpan.className = 'content';
+            contentSpan.textContent = msg.content;
+            
+            item.appendChild(senderSpan);
+            item.appendChild(contentSpan);
+
+            // Add a "timestamp" if the message content suggests it (like the server echo)
+            if (msg.content && msg.content.includes("Received at")) {
+                 const timeString = msg.content.substring(msg.content.indexOf("Received at") + "Received at ".length);
+                 const timeStampSpan = document.createElement('span');
+                 timeStampSpan.className = 'timestamp';
+                 try {
+                    timeStampSpan.textContent = new Date(timeString).toLocaleTimeString();
+                 } catch (e) { /* ignore parse error */ }
+                 item.appendChild(timeStampSpan);
+            }
+
+
+            messagesList.appendChild(item);
+            messagesList.scrollTop = messagesList.scrollHeight;
+        }
+
+        function sendMessage() {
+            const messageContent = messageInput.value;
+            const roomId = roomIdInput.value;
+            const senderId = senderIdInput.value;
+
+            if (!messageContent.trim()) {
+                alert("Message cannot be empty!");
+                return;
+            }
+            if (!roomId.trim()) {
+                alert("Room ID cannot be empty!");
+                return;
+            }
+            if (!senderId.trim()) {
+                alert("Sender ID cannot be empty!");
+                return;
+            }
+
+            const chatMessage = {
+                // id should be unique, generate one client-side or let server assign
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                room_id: roomId,
+                sender_id: senderId,
+                content: messageContent
+            };
+
+            // The proxy expects { chat_message: ... } or a direct ChatMessage object.
+            // Sending direct ChatMessage as per current proxy logic.
+            // If we want to strictly follow the ChatStream.chat_message structure:
+            // ws.send(JSON.stringify({ chat_message: chatMessage }));
+            ws.send(JSON.stringify(chatMessage));
+            
+            // Display sent message immediately (optimistic update)
+            // displayMessage(chatMessage, false); // server will echo it back
+            
+            messageInput.value = '';
+        }
+
+        function requestHistory() {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'getHistory' }));
+            } else {
+                alert('WebSocket is not connected.');
+            }
+        }
+        
+        // Add event listener for Enter key on message input
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+    </script>
+</body>
+</html> 
